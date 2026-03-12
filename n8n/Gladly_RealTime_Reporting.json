@@ -1,0 +1,410 @@
+{
+  "name": "Gladly_RealTime_Reporting",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "bd130e93-ab8c-4eb7-b506-3b27ea0c843c",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "1NT0ZIpWUH3edFDQSGWplEY2W2eWjEYlRvHzlKIzrFMA",
+          "mode": "list",
+          "cachedResultName": "Agent_Hourly_Output_Report",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NT0ZIpWUH3edFDQSGWplEY2W2eWjEYlRvHzlKIzrFMA/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1089372278,
+          "mode": "list",
+          "cachedResultName": "Plantilla de Reporte Operativo Limpia",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1NT0ZIpWUH3edFDQSGWplEY2W2eWjEYlRvHzlKIzrFMA/edit#gid=1089372278"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        208,
+        0
+      ],
+      "id": "e03c2035-ad76-4e61-8198-b45171135a23",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "vnaApMHAhSjzz2tq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const hours = [\"8 AM\", \"9 AM\", \"10 AM\", \"11 AM\", \"12 PM\", \"1 PM\", \"2 PM\", \"3 PM\", \"4 PM\", \"5 PM\", \"6 PM\"];\nlet teamTotal = 0;\nlet lastHour = \"\";\nlet agentsProcessed = [];\n\nconst inputItems = $input.all();\n\n// Calculate totals and real-time average\ninputItems.forEach(item => {\n  let row = item.json;\n  let agentSum = 0;\n  let agentName = row[\"Agent\"] || row[\"Agente\"] || row[\"agente\"] || \"Unknown\";\n\n  hours.forEach(h => {\n    let val = parseInt(row[h]);\n    if (!isNaN(val)) {\n      agentSum += val;\n      lastHour = h;\n    }\n  });\n\n  if (agentSum > 0) {\n    teamTotal += agentSum;\n    agentsProcessed.push({ name: agentName, tickets: agentSum });\n  }\n});\n\nconst teamAverage = agentsProcessed.length > 0 ? teamTotal / agentsProcessed.length : 0;\n\n\n// --- SYNCHRONIZED SLA LOGIC (Power BI Equivalent) ---\nconst hourMapping = {\n  \"8 AM\": 1, \"9 AM\": 2, \"10 AM\": 3, \"11 AM\": 4, \n  \"12 PM\": 5, \"1 PM\": 6, \"2 PM\": 7, \"3 PM\": 8, \n  \"4 PM\": 9, \"5 PM\": 10, \"6 PM\": 11\n};\n\nconst hoursSinceStart = hourMapping[lastHour] || 1;\nconst expectedGoal = hoursSinceStart * 5.6;\nconst slaResult = (teamAverage / expectedGoal).toFixed(2);\n\n// Shift logic\nlet outgoingShift = \"\";\nif (lastHour === \"1 PM\") outgoingShift = \"6 AM - 2 PM\";\nelse if (lastHour === \"2 PM\") outgoingShift = \"7 AM - 3 PM\";\nelse if (lastHour === \"3 PM\") outgoingShift = \"8 AM - 4 PM\";\nelse if (lastHour === \"5 PM\") outgoingShift = \"10 AM - 6 PM\";\n\nconst isCriticalHour = (outgoingShift !== \"\");\n\n// 2. Step Two: Build the dynamic status table (Monospace)\nlet tableText = \"```\\n\"; \ntableText += \"AGENT           | TKS | STATUS\\n\";\ntableText += \"------------------------------\\n\";\n\nagentsProcessed.forEach(ag => {\n  let statusEmoji = \"🔴\"; // Below 80% of average\n  \n  if (ag.tickets >= teamAverage) {\n    statusEmoji = \"🟢\"; // Above average\n  } \n  else if (ag.tickets >= (teamAverage * 0.8)) {\n    statusEmoji = \"🟡\"; // Close to average (80%+)\n  }\n\n  const fixedName = ag.name.substring(0, 15).padEnd(15, ' ');\n  const fixedTickets = ag.tickets.toString().padStart(3, ' ');\n  tableText += `${fixedName} | ${fixedTickets} | ${statusEmoji}\\n`;\n});\n\ntableText += \"------------------------------\\n\";\ntableText += `TOTAL TEAM      | ${teamTotal.toString().padStart(3, ' ')} | 🚀\\n`;\ntableText += \"```\";\n\n// 3. Improved n8n Output Mapping\nconst output = inputItems.map((item, index) => {\n  // We create the summary only for the first item to avoid redundancy\n  const summary = index === 0 ? {\n    table_content: tableText,\n    grand_total: teamTotal,\n    average_productivity: teamAverage.toFixed(1),\n    cutoff_time: lastHour,\n    sla_score: slaResult, // The dynamic value matching Power BI\n    shift_name: outgoingShift,\n    is_critical: isCriticalHour\n  } : null;\n\n  return {\n    json: {\n      // Tickets per agent for the Excel PUT\n      total_val: (index < agentsProcessed.length) ? agentsProcessed[index].tickets : null,\n      \n      // Data for Gemini and Slack nodes\n      slack_message: summary, \n      data_for_ai: summary \n    }\n  };\n});\n\n// Extra item for Grand Total row in Excel\noutput.push({ \n  json: { \n    total_val: teamTotal, \n    is_grand_total: true \n  } \n});\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "75f79bac-5097-4005-8a3d-c35f7644d6d4",
+      "name": "Code in JavaScript",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "https://sheets.googleapis.com/v4/spreadsheets/1NT0ZIpWUH3edFDQSGWplEY2W2eWjEYlRvHzlKIzrFMA/values/M2:M43?valueInputOption=USER_ENTERED",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n{\n  \"values\": $input.all().map(i => [i.json.total_val])\n}\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        608,
+        0
+      ],
+      "id": "126fb954-e5e4-4650-88d6-71444d695729",
+      "name": "HTTP Request",
+      "executeOnce": true,
+      "credentials": {
+        "googleApi": {
+          "id": "vnaApMHAhSjzz2tq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#cht_channel",
+          "mode": "name"
+        },
+        "text": "=📊 *OPERATIONAL PRODUCTIVITY REPORT*\n---\n{{ $node[\"Code in JavaScript\"].json.slack_message.table_content }}\n---\n📈 *Summary:*\n• *Team Average:* {{ $node[\"Code in JavaScript\"].json.slack_message.average_productivity }} tickets/agent\n🕒 *Data Cutoff:* {{ $node[\"Code in JavaScript\"].json.slack_message.cutoff_time }}\n\n_🤖 Luis Automated Monitoring System_",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1184,
+        16
+      ],
+      "id": "baa2fe94-f4d0-4c1d-8918-8341cdd1d129",
+      "name": "Send a message",
+      "webhookId": "c128fa2e-3709-422c-aa5d-081ff12b9ed5",
+      "credentials": {
+        "slackApi": {
+          "id": "s5ShiXXfeXys3okB",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=📝 Prompt Actualizado (Variables en Inglés)\nPlaintext\nEres el Supervisor de Vortex Solutions. NO escribas código de programación. Escribe un mensaje directo para Slack.\n\nDATOS RECIBIDOS:\n- SLA Actual: {{ $json.data_for_ai.sla_score }} (Meta ideal = 1.0)\n- Turno que está por salir: {{ $json.data_for_ai.shift_name }}\n- Última hora reportada: {{ $json.data_for_ai.cutoff_time }}\n- ¿Es hora de aviso crítico?: {{ $json.data_for_ai.is_critical }}\n\nINSTRUCCIONES DE SEGMENTACIÓN:\n1. SI 'is_critical' es FALSE: Responde únicamente con la palabra \"SKIP\". No redactes nada más.\n2. SI el SLA es MENOR a 1.0: El tono debe ser de \"Urgencia Motivadora\". Menciona que están por debajo de la meta ({{ $json.data_for_ai.sla_score }}) y que el equipo de {{ $json.data_for_ai.shift_name }} debe dar un último esfuerzo antes de salir para llegar al 1.0.\n3. SI el SLA es 1.0 o MAYOR: El tono debe ser de \"Reconocimiento y Orgullo\". Felicita al equipo de {{ $json.data_for_ai.shift_name }} por cerrar su jornada con un SLA de {{ $json.data_for_ai.sla_score }} además diles que mantengan el ritmo.\n\nREGLAS DE ESTILO:\n- Máximo 3 líneas de texto.\n- Usa emojis de energía (🚀, ⚡, 🔥).\n- Sé directo y profesional, pero con la chispa de un equipo de alto rendimiento.\n- Menciona siempre el nombre del turno (ej. \"Equipo de 6 AM - 2 PM\")."
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1504,
+        -352
+      ],
+      "id": "cedfd0fa-da91-44d3-8f24-386dac07006a",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Hl6YsfX0TyYKWB5Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cfecdd3b-225e-4bf2-a3f6-9cb2db3785aa",
+              "leftValue": "=  {{ $json.content.parts[0].text }}",
+              "rightValue": "SKIP",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1840,
+        -336
+      ],
+      "id": "15b2a434-c67d-4a39-ba34-a994b11bb982",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "c265b02d-5a79-4cbd-b7e9-b3e68630f262",
+              "leftValue": "={{ $json.data_for_ai }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        672,
+        -352
+      ],
+      "id": "8434c76e-1ddc-4261-877c-2be5a1d35b79",
+      "name": "Filter1"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1168,
+        -336
+      ],
+      "id": "1c52bef2-e26a-4360-bbc1-8b50f36980f0",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#cht_channel",
+          "mode": "name"
+        },
+        "text": "={{ $json.content.parts[0].text }}",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        2048,
+        -336
+      ],
+      "id": "3c3e484e-a004-48c2-9110-1ad6316bd016",
+      "name": "Send a message1",
+      "webhookId": "3d202905-c17e-497d-b5ca-8113da150875",
+      "credentials": {
+        "slackApi": {
+          "id": "s5ShiXXfeXys3okB",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#vortex-ai-audit",
+          "mode": "name"
+        },
+        "text": "=*🔍 VORTEX AI AUDIT LOG*\n---\n*Decision:* {{ $json.content.parts[0].text === 'SKIP' ? '⚪ IGNORED (Not critical hour)' : '✅ SENT TO GLOBAL' }}\n*Hour:* `{{ $node[\"Merge\"].json.data_for_ai.cutoff_time }}`\n*SLA Score:* `{{ $node[\"Merge\"].json.data_for_ai.sla_score }}`\n*Expected Goal:* `{{ (5.6 * { \"8 AM\": 1, \"9 AM\": 2, \"10 AM\": 3, \"11 AM\": 4, \"12 PM\": 5, \"1 PM\": 6, \"2 PM\": 7, \"3 PM\": 8, \"4 PM\": 9, \"5 PM\": 10, \"6 PM\": 11 }[$node[\"Merge\"].json.data_for_ai.cutoff_time]).toFixed(2) }}`\n---\n*AI Raw Output:*\n\"{{ $json.content.parts[0].text }}\"",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1856,
+        -560
+      ],
+      "id": "71c3adb5-8eb8-415c-84b8-d14630096c73",
+      "name": "Send a message2",
+      "webhookId": "3d202905-c17e-497d-b5ca-8113da150875",
+      "credentials": {
+        "slackApi": {
+          "id": "s5ShiXXfeXys3okB",
+          "name": "Slack account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a message2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Send a message": {
+      "main": [
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Send a message1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "40734c0a-32a2-4ba8-a9ba-78b8d8ae2aab",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "11915707a7b101a7347d374b72abeb1bed732cfb87a7f554c8ce298d1fc487b9"
+  },
+  "id": "au5LJkdoRdjHWbh7",
+  "tags": []
+}

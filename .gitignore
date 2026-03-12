@@ -1,0 +1,5 @@
+# Credentials and Secrets
+credentials.json
+.env
+auth.js
+tokens.json

@@ -32,7 +32,7 @@ def run_simulation(mode, until_hour=None):
     ranges = {"low": (1, 3), "normal": (5, 8), "high": (10, 15)}
     low, high = ranges.get(mode, (5, 8))
     
-    target_hour = int(until_hour) if until_hour else 14
+    target_hour = int(until_hour) if until_hour else 17
     print(f"🚀 Inyecting ({mode}) from 8 AM until {target_hour}:00...")
 
     for h, col in hour_to_col.items():

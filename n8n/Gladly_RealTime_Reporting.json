@@ -57,7 +57,7 @@
         0
       ],
       "id": "75f79bac-5097-4005-8a3d-c35f7644d6d4",
-      "name": "Code in JavaScript",
+      "name": "JS: Process Operational Metrics",
       "executeOnce": false
     },
     {
@@ -74,11 +74,11 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        608,
+        688,
         0
       ],
       "id": "126fb954-e5e4-4650-88d6-71444d695729",
-      "name": "HTTP Request",
+      "name": "API: Update Master Spreadsheet",
       "executeOnce": true,
       "credentials": {
         "googleApi": {
@@ -86,99 +86,6 @@
           "name": "Google Sheets account"
         }
       }
-    },
-    {
-      "parameters": {
-        "select": "channel",
-        "channelId": {
-          "__rl": true,
-          "value": "#cht_channel",
-          "mode": "name"
-        },
-        "text": "=📊 *OPERATIONAL PRODUCTIVITY REPORT*\n---\n{{ $node[\"Code in JavaScript\"].json.slack_message.table_content }}\n---\n📈 *Summary:*\n• *Team Average:* {{ $node[\"Code in JavaScript\"].json.slack_message.average_productivity }} tickets/agent\n🕒 *Data Cutoff:* {{ $node[\"Code in JavaScript\"].json.slack_message.cutoff_time }}\n\n_🤖 Luis Automated Monitoring System_",
-        "otherOptions": {}
-      },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.4,
-      "position": [
-        1184,
-        16
-      ],
-      "id": "baa2fe94-f4d0-4c1d-8918-8341cdd1d129",
-      "name": "Send a message",
-      "webhookId": "c128fa2e-3709-422c-aa5d-081ff12b9ed5",
-      "credentials": {
-        "slackApi": {
-          "id": "s5ShiXXfeXys3okB",
-          "name": "Slack account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "modelId": {
-          "__rl": true,
-          "value": "models/gemini-2.5-flash",
-          "mode": "list",
-          "cachedResultName": "models/gemini-2.5-flash"
-        },
-        "messages": {
-          "values": [
-            {
-              "content": "=📝 Prompt Actualizado (Variables en Inglés)\nPlaintext\nEres el Supervisor de Vortex Solutions. NO escribas código de programación. Escribe un mensaje directo para Slack.\n\nDATOS RECIBIDOS:\n- SLA Actual: {{ $json.data_for_ai.sla_score }} (Meta ideal = 1.0)\n- Turno que está por salir: {{ $json.data_for_ai.shift_name }}\n- Última hora reportada: {{ $json.data_for_ai.cutoff_time }}\n- ¿Es hora de aviso crítico?: {{ $json.data_for_ai.is_critical }}\n\nINSTRUCCIONES DE SEGMENTACIÓN:\n1. SI 'is_critical' es FALSE: Responde únicamente con la palabra \"SKIP\". No redactes nada más.\n2. SI el SLA es MENOR a 1.0: El tono debe ser de \"Urgencia Motivadora\". Menciona que están por debajo de la meta ({{ $json.data_for_ai.sla_score }}) y que el equipo de {{ $json.data_for_ai.shift_name }} debe dar un último esfuerzo antes de salir para llegar al 1.0.\n3. SI el SLA es 1.0 o MAYOR: El tono debe ser de \"Reconocimiento y Orgullo\". Felicita al equipo de {{ $json.data_for_ai.shift_name }} por cerrar su jornada con un SLA de {{ $json.data_for_ai.sla_score }} además diles que mantengan el ritmo.\n\nREGLAS DE ESTILO:\n- Máximo 3 líneas de texto.\n- Usa emojis de energía (🚀, ⚡, 🔥).\n- Sé directo y profesional, pero con la chispa de un equipo de alto rendimiento.\n- Menciona siempre el nombre del turno (ej. \"Equipo de 6 AM - 2 PM\")."
-            }
-          ]
-        },
-        "builtInTools": {},
-        "options": {}
-      },
-      "type": "@n8n/n8n-nodes-langchain.googleGemini",
-      "typeVersion": 1.1,
-      "position": [
-        1504,
-        -352
-      ],
-      "id": "cedfd0fa-da91-44d3-8f24-386dac07006a",
-      "name": "Message a model",
-      "credentials": {
-        "googlePalmApi": {
-          "id": "Hl6YsfX0TyYKWB5Y",
-          "name": "Google Gemini(PaLM) Api account"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "strict",
-            "version": 3
-          },
-          "conditions": [
-            {
-              "id": "cfecdd3b-225e-4bf2-a3f6-9cb2db3785aa",
-              "leftValue": "=  {{ $json.content.parts[0].text }}",
-              "rightValue": "SKIP",
-              "operator": {
-                "type": "string",
-                "operation": "notEquals"
-              }
-            }
-          ],
-          "combinator": "and"
-        },
-        "options": {}
-      },
-      "type": "n8n-nodes-base.filter",
-      "typeVersion": 2.3,
-      "position": [
-        1840,
-        -336
-      ],
-      "id": "15b2a434-c67d-4a39-ba34-a994b11bb982",
-      "name": "Filter"
     },
     {
       "parameters": {
@@ -212,21 +119,40 @@
         -352
       ],
       "id": "8434c76e-1ddc-4261-877c-2be5a1d35b79",
-      "name": "Filter1"
+      "name": "Check: Critical Hour Validation"
     },
     {
       "parameters": {
-        "mode": "chooseBranch",
-        "useDataOfInput": 2
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=<system_purpose>\nYou are the \"Operational Strategy Agent\" for VORTEX Your mission is to audit the performance of the bilingual support team and generate high-precision interventions (alerts) that balance operational urgency with professional excellence and customer satisfaction.\n</system_purpose>\n\n<context_data>\n- Current_SLA: {{ $json.data_for_ai.sla_score }} (Target: 1.0)\n- Outgoing_Shift: {{ $json.data_for_ai.shift_name }}\n- Cutoff_Time: {{ $json.data_for_ai.cutoff_time }}\n- Critical_Status: {{ $json.data_for_ai.is_critical }}\n</context_data>\n\n<few_shot_examples>\n  <example>\n    <input>SLA: 0.85 | Critical: True | Shift: 6 AM - 2 PM</input>\n    <thought>The SLA is 15% below the target. It’s closing time. I need to inject energy and focus into the final push.</thought>\n\n    <output>6 AM - 2 PM Team! ⚡ We’re just one step away from the goal (SLA 0.85). Let’s give it our all in this final hour to reach 1.0. Your last effort makes the difference! 🔥</output>\n  </example>\n\n  <example>\n    <input>SLA: 1.05 | Critical: True | Shift: 10 AM - 6 PM</input>\n\n    <thought>Target exceeded. It’s time to positively reinforce the behavior to maintain momentum.</thought>\n\n    <output>Excellent finish, 10 AM - 6 PM Team! 🚀 We exceeded the target with an SLA of 1.05. Thank you for maintaining quality and pace until the end. Time to rest with the job well done! ✨</output>\n\n  </example>\n</few_shot_examples>\n\n<task_instructions>\n1. INITIAL VALIDATION: If \"Critical_Status\" is FALSE, respond only with \"SKIP\".\n2. REASONING (Chain of Thought): Before writing, internally analyze the gap between the current SLA and the target.\n3. TONE:\n   - If SLA < 1.0: Empathetic Urgency (focused on the \"final push\").\n   - If SLA >= 1.0: Aspirational Recognition.\n4. CONSTRAINTS:\n   - Maximum 3 lines.\n   - Use only high-impact emojis (🚀, ⚡, 🔥, ✨).\n   - Always include the shift name.\n</task_instructions>\n\n<response_format>\nWrite the \"Thought:\" analysis followed by the final \"Message:\". (If it is SKIP, just write SKIP).\n</response_format>"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
       },
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
       "position": [
-        1168,
-        -336
+        1488,
+        -352
       ],
-      "id": "1c52bef2-e26a-4360-bbc1-8b50f36980f0",
-      "name": "Merge"
+      "id": "cedfd0fa-da91-44d3-8f24-386dac07006a",
+      "name": "AI: Generate Supervisor Feedback",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Hl6YsfX0TyYKWB5Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
     },
     {
       "parameters": {
@@ -236,17 +162,17 @@
           "value": "#cht_channel",
           "mode": "name"
         },
-        "text": "={{ $json.content.parts[0].text }}",
+        "text": "={{ $json.content.parts[0].text.split('Message:')[1].trim() }}",
         "otherOptions": {}
       },
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
       "position": [
-        2048,
-        -336
+        2080,
+        -320
       ],
       "id": "3c3e484e-a004-48c2-9110-1ad6316bd016",
-      "name": "Send a message1",
+      "name": "Slack: Post Team Alert",
       "webhookId": "3d202905-c17e-497d-b5ca-8113da150875",
       "credentials": {
         "slackApi": {
@@ -263,17 +189,17 @@
           "value": "#vortex-ai-audit",
           "mode": "name"
         },
-        "text": "=*🔍 VORTEX AI AUDIT LOG*\n---\n*Decision:* {{ $json.content.parts[0].text === 'SKIP' ? '⚪ IGNORED (Not critical hour)' : '✅ SENT TO GLOBAL' }}\n*Hour:* `{{ $node[\"Merge\"].json.data_for_ai.cutoff_time }}`\n*SLA Score:* `{{ $node[\"Merge\"].json.data_for_ai.sla_score }}`\n*Expected Goal:* `{{ (5.6 * { \"8 AM\": 1, \"9 AM\": 2, \"10 AM\": 3, \"11 AM\": 4, \"12 PM\": 5, \"1 PM\": 6, \"2 PM\": 7, \"3 PM\": 8, \"4 PM\": 9, \"5 PM\": 10, \"6 PM\": 11 }[$node[\"Merge\"].json.data_for_ai.cutoff_time]).toFixed(2) }}`\n---\n*AI Raw Output:*\n\"{{ $json.content.parts[0].text }}\"",
+        "text": "=*🔍 VORTEX AI AUDIT LOG*\n---\n*Decision:* {{ $json.content.parts[0].text === 'SKIP' ? '⚪ IGNORED (Not critical hour)' : '✅ SENT TO GLOBAL' }}\n*Hour:* `{{ $node[\"Merge: Sync Operational & AI Context\"].json.data_for_ai.cutoff_time }}`\n*SLA Score:* `{{ $node[\"Merge: Sync Operational & AI Context\"].json.data_for_ai.sla_score }}`\n*Expected Goal:* `{{ (5.6 * { \"8 AM\": 1, \"9 AM\": 2, \"10 AM\": 3, \"11 AM\": 4, \"12 PM\": 5, \"1 PM\": 6, \"2 PM\": 7, \"3 PM\": 8, \"4 PM\": 9, \"5 PM\": 10, \"6 PM\": 11 }[$node[\"Merge: Sync Operational & AI Context\"].json.data_for_ai.cutoff_time]).toFixed(2) }}`\n---\n*AI Raw Output:*\n\"{{ $json.content.parts[0].text }}\"",
         "otherOptions": {}
       },
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
       "position": [
-        1856,
-        -560
+        2080,
+        -672
       ],
       "id": "71c3adb5-8eb8-415c-84b8-d14630096c73",
-      "name": "Send a message2",
+      "name": "Slack: Write Audit Log",
       "webhookId": "3d202905-c17e-497d-b5ca-8113da150875",
       "credentials": {
         "slackApi": {
@@ -281,6 +207,80 @@
           "name": "Slack account"
         }
       }
+    },
+    {
+      "parameters": {
+        "select": "channel",
+        "channelId": {
+          "__rl": true,
+          "value": "#cht_channel",
+          "mode": "name"
+        },
+        "text": "=📊 *OPERATIONAL PRODUCTIVITY REPORT*\n---\n{{ $node[\"JS: Process Operational Metrics\"].json.slack_message.table_content }}\n---\n📈 *Summary:*\n• *Team Average:* {{ $node[\"JS: Process Operational Metrics\"].json.slack_message.average_productivity }} tickets/agent\n🕒 *Data Cutoff:* {{ $node[\"JS: Process Operational Metrics\"].json.slack_message.cutoff_time }}\n\n_🤖 Luis Automated Monitoring System_",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.4,
+      "position": [
+        1168,
+        0
+      ],
+      "id": "baa2fe94-f4d0-4c1d-8918-8341cdd1d129",
+      "name": "Slack: Print Hourly Report",
+      "webhookId": "c128fa2e-3709-422c-aa5d-081ff12b9ed5",
+      "credentials": {
+        "slackApi": {
+          "id": "s5ShiXXfeXys3okB",
+          "name": "Slack account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "cfecdd3b-225e-4bf2-a3f6-9cb2db3785aa",
+              "leftValue": "=  {{ $json.content.parts[0].text }}",
+              "rightValue": "SKIP",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1872,
+        -320
+      ],
+      "id": "15b2a434-c67d-4a39-ba34-a994b11bb982",
+      "name": "Check: Clean Output & Skip Logic"
+    },
+    {
+      "parameters": {
+        "mode": "chooseBranch",
+        "useDataOfInput": 2
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        -352
+      ],
+      "id": "1c52bef2-e26a-4360-bbc1-8b50f36980f0",
+      "name": "Merge: Sync Operational & AI Context"
     }
   ],
   "pinData": {},
@@ -300,93 +300,93 @@
       "main": [
         [
           {
-            "node": "Code in JavaScript",
+            "node": "JS: Process Operational Metrics",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Code in JavaScript": {
+    "JS: Process Operational Metrics": {
       "main": [
         [
           {
-            "node": "HTTP Request",
+            "node": "API: Update Master Spreadsheet",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Filter1",
+            "node": "Check: Critical Hour Validation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "HTTP Request": {
+    "API: Update Master Spreadsheet": {
       "main": [
         [
           {
-            "node": "Send a message",
+            "node": "Slack: Print Hourly Report",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Merge",
+            "node": "Merge: Sync Operational & AI Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Message a model": {
+    "Check: Critical Hour Validation": {
       "main": [
         [
           {
-            "node": "Filter",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Send a message2",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Filter1": {
-      "main": [
-        [
-          {
-            "node": "Merge",
+            "node": "Merge: Sync Operational & AI Context",
             "type": "main",
             "index": 1
           }
         ]
       ]
     },
-    "Send a message": {
-      "main": [
-        []
-      ]
-    },
-    "Merge": {
+    "AI: Generate Supervisor Feedback": {
       "main": [
         [
           {
-            "node": "Message a model",
+            "node": "Check: Clean Output & Skip Logic",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Slack: Write Audit Log",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Filter": {
+    "Slack: Print Hourly Report": {
+      "main": [
+        []
+      ]
+    },
+    "Check: Clean Output & Skip Logic": {
       "main": [
         [
           {
-            "node": "Send a message1",
+            "node": "Slack: Post Team Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge: Sync Operational & AI Context": {
+      "main": [
+        [
+          {
+            "node": "AI: Generate Supervisor Feedback",
             "type": "main",
             "index": 0
           }
@@ -400,7 +400,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "40734c0a-32a2-4ba8-a9ba-78b8d8ae2aab",
+  "versionId": "08c0bce1-3db0-4510-8268-d042c90a0cf1",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "11915707a7b101a7347d374b72abeb1bed732cfb87a7f554c8ce298d1fc487b9"

@@ -1,5 +1,5 @@
 {
-  "name": "Gladly_RealTime_Reporting",
+  "name": "Vortex_workflow",
   "nodes": [
     {
       "parameters": {},
@@ -137,7 +137,10 @@
           ]
         },
         "builtInTools": {},
-        "options": {}
+        "options": {
+          "maxOutputTokens": 800,
+          "temperature": 1
+        }
       },
       "type": "@n8n/n8n-nodes-langchain.googleGemini",
       "typeVersion": 1.1,
@@ -168,8 +171,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
       "position": [
-        2080,
-        -320
+        2272,
+        -288
       ],
       "id": "3c3e484e-a004-48c2-9110-1ad6316bd016",
       "name": "Slack: Post Team Alert",
@@ -195,8 +198,8 @@
       "type": "n8n-nodes-base.slack",
       "typeVersion": 2.4,
       "position": [
-        2080,
-        -672
+        2272,
+        -528
       ],
       "id": "71c3adb5-8eb8-415c-84b8-d14630096c73",
       "name": "Slack: Write Audit Log",
@@ -262,8 +265,8 @@
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.3,
       "position": [
-        1872,
-        -320
+        2000,
+        -304
       ],
       "id": "15b2a434-c67d-4a39-ba34-a994b11bb982",
       "name": "Check: Clean Output & Skip Logic"
@@ -281,6 +284,149 @@
       ],
       "id": "1c52bef2-e26a-4360-bbc1-8b50f36980f0",
       "name": "Merge: Sync Operational & AI Context"
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1HXD9HIvMCeLve_T6qSllhoB_WHSPqJCybuKHpjQb0QI",
+          "mode": "list",
+          "cachedResultName": "AI_Prompt_Performance_Registry_V1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HXD9HIvMCeLve_T6qSllhoB_WHSPqJCybuKHpjQb0QI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Hoja 1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1HXD9HIvMCeLve_T6qSllhoB_WHSPqJCybuKHpjQb0QI/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now.setZone('America/Tijuana').toFormat('yyyy-MM-dd HH:mm:ss') }}",
+            "Shift_Name": "={{ $node[\"Merge: Sync Operational & AI Context\"].json.data_for_ai.shift_name }}",
+            "SLA_Score": "={{ $node[\"Merge: Sync Operational & AI Context\"].json.data_for_ai.sla_score }}",
+            "Goal_Gap": "={{ (1.0 - $node[\"Merge: Sync Operational & AI Context\"].json.data_for_ai.sla_score).toFixed(2) }}",
+            "AI_Thought": "={{ $json.content.parts[0].text.split('Message:')[0].replace('Thought:', '').trim() }}",
+            "AI_Message": "={{ $json.content.parts[0].text.split('Message:')[1].trim() }}",
+            "Prompt_Version": "1.1",
+            "Status": "={{ $json.content.parts[0].text.includes('SKIP') ? 'SKIPPED' : 'SENT' }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Timestamp",
+              "displayName": "Timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Shift_Name",
+              "displayName": "Shift_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SLA_Score",
+              "displayName": "SLA_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Goal_Gap",
+              "displayName": "Goal_Gap",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI_Thought",
+              "displayName": "AI_Thought",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "AI_Message",
+              "displayName": "AI_Message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Prompt_Version",
+              "displayName": "Prompt_Version",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Human_Validation",
+              "displayName": "Human_Validation",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        2272,
+        -720
+      ],
+      "id": "90e313ca-49a8-4bcb-bb8c-27ecc0953067",
+      "name": "Append row in sheet",
+      "credentials": {
+        "googleApi": {
+          "id": "vnaApMHAhSjzz2tq",
+          "name": "Google Sheets account"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -362,6 +508,11 @@
             "node": "Slack: Write Audit Log",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Append row in sheet",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -392,6 +543,11 @@
           }
         ]
       ]
+    },
+    "Slack: Write Audit Log": {
+      "main": [
+        []
+      ]
     }
   },
   "active": false,
@@ -400,7 +556,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "08c0bce1-3db0-4510-8268-d042c90a0cf1",
+  "versionId": "a9280108-13ed-4eec-9ecf-d1efe71bced4",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "11915707a7b101a7347d374b72abeb1bed732cfb87a7f554c8ce298d1fc487b9"
